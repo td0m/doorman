@@ -18,15 +18,6 @@ type Server struct {
 	tuples *TupleStore
 }
 
-// func (s Server) CheckDirect(ctx context.Context, tuple Tuple) error {
-// 	// Check direct connection
-// 	ok, err := s.tuples.Exists(ctx, tuple)
-// 	if err != nil {
-// 		return false, nil
-// 	}
-// 	return ErrNoConnection
-// }
-
 func (s *Server) Check(ctx context.Context, tuple Tuple) (bool, error) {
 	success, err := s.tuples.Exists(ctx, tuple)
 	if err != nil {
@@ -34,6 +25,24 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) (bool, error) {
 	}
 	if success {
 		return true, nil
+	}
+
+	// If connected to subject that is a tupleset then any members of that tupleset automatically become members of this one
+	subjects, _ := s.tuples.ListSubjects(ctx, Tupleset{Object: tuple.Object, Relation: tuple.Relation})
+	for _, subject := range subjects {
+		tupleset, err := NewTupleset(subject)
+		// TODO: consider more efficient way of doing this by having materialized col and indexing by it.
+		if err != nil {
+			continue
+		}
+
+		success, err := s.Check(ctx, Tuple{Object: tupleset.Object, Relation: tupleset.Relation, Subject: tuple.Subject})
+		if err != nil {
+			return false, fmt.Errorf("failed to check tupleset: %w", err)
+		}
+		if success {
+			return true, nil
+		}
 	}
 
 	computed := ComputedTupleResolver{server: s, schema: s.schema}
@@ -45,38 +54,6 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) (bool, error) {
 		return true, nil
 	}
 	return false, nil
-	// // Check Direct
-	// err := s.CheckDirect(ctx, tuple)
-	// if err != nil && err != ErrNoConnection {
-	// 	return fmt.Errorf("failed direct check: %w", err)
-	// }
-	// if err == nil {
-	// 	return nil
-	// }
-	//
-	// lazyUserset, err := s.schema.Resolve(ctx, tuple)
-	// if err != nil {
-	// 	return fmt.Errorf("failed resolving schema: %w", err)
-	// }
-	//
-	// if false {
-	// 	fmt.Println(tuple, lazyUserset)
-	// }
-	//
-	// resolver := DirectResolver{
-	// 	server: s,
-	// }
-	// // cached := NewCached(resolver)
-	//
-	// ok, err := resolver.Check(ctx, lazyUserset, tuple.Subject)
-	// if err != nil {
-	// 	return fmt.Errorf("failed computing lazy userset: %w", err)
-	// }
-	//
-	// if ok {
-	// 	return nil
-	// }
-	// return ErrNoConnection
 }
 
 func (s *Server) ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error) {

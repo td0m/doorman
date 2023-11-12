@@ -91,6 +91,62 @@ func TestComputed(t *testing.T) {
 	assert.True(t, success)
 }
 
+func TestComputedButSubjectIsTupleset(t *testing.T) {
+	ctx := context.Background()
+
+	conn, err := pgxpool.New(ctx, "")
+	if err != nil {
+		panic(err)
+	}
+	cleanup(ctx, conn)
+
+	schema := SchemaDef{
+		Types: []SchemaTypeDef{
+			{
+				Name: "group",
+				Relations: []SchemaRelationDef{
+					{Name: "child"},
+					{Name: "member", Value: NewComputedVia("child", "member")},
+				},
+			},
+			{
+				Name: "shop",
+				Relations: []SchemaRelationDef{
+					{Name: "owner"},
+				},
+			},
+		},
+	}
+
+	s := NewServer(schema, NewTupleStore(conn))
+
+	t.Run("FailsInitially", func(t *testing.T) {
+		success, err := s.Check(ctx, MustNewTuple("shop:a#owner@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
+	})
+
+	t.Run("SuccessWhenGroupMember", func(t *testing.T) {
+		_, err = s.Write(ctx, WriteRequest{
+			Add: []Tuple{
+				MustNewTuple("shop:a#owner@group:foo#member"),
+				MustNewTuple("group:foo#member@user:dom"),
+			},
+		})
+		require.NoError(t, err)
+
+		success, err := s.Check(ctx, MustNewTuple("shop:a#owner@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
+	})
+
+	t.Run("SuccessCheckingTuplesetMemberOfTupleset", func(t *testing.T) {
+		success, err := s.Check(ctx, MustNewTuple("shop:a#owner@group:foo#member"))
+		require.NoError(t, err)
+		assert.True(t, success)
+	})
+}
+
 func TestUnion(t *testing.T) {
 	ctx := context.Background()
 
