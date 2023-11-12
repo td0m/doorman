@@ -11,6 +11,32 @@ type TupleStore struct {
 	conn *pgxpool.Pool
 }
 
+func (t *TupleStore) ListUsers(ctx context.Context, userset Userset) ([]string, error) {
+	query := `
+		select user_id
+		from tuples
+		where
+			object = $1 and
+			relation = $2
+	`
+
+	users := []string{}
+	rows, err := t.conn.Query(ctx, query, userset.Object, userset.Relation)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query: %w", err)
+	}
+
+	for rows.Next() {
+		user := ""
+		if err := rows.Scan(ctx, &user); err != nil {
+			return nil, fmt.Errorf("failed to scan: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 func (t *TupleStore) Add(ctx context.Context, tuple Tuple) error {
 	query := `
 		insert into tuples(object, relation, user_id)

@@ -14,10 +14,11 @@ type WriteRequest struct {
 }
 
 type Server struct {
+	schema SchemaDef
 	tuples *TupleStore
 }
 
-func (s *Server) Check(ctx context.Context, tuple Tuple) error {
+func (s Server) CheckDirect(ctx context.Context, tuple Tuple) error {
 	// Check direct connection
 	err := s.tuples.Exists(ctx, tuple)
 	if err == nil {
@@ -26,6 +27,25 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) error {
 	if err != ErrNoConnection {
 		return fmt.Errorf("failed checking tuple store: %w", err)
 	}
+
+	return ErrNoConnection
+}
+
+func (s *Server) Check(ctx context.Context, tuple Tuple) error {
+	lazyUserset, err := s.schema.Resolve(ctx, s.tuples, tuple)
+	if err != nil {
+		return fmt.Errorf("failed resolving schema: %w", err)
+	}
+
+	ok, err := lazyUserset.Has(ctx, s, tuple.UserID)
+	if err != nil {
+		return fmt.Errorf("failed computing lazy userset: %w", err)
+	}
+
+	if ok {
+		return nil
+	}
+
 	return ErrNoConnection
 }
 
@@ -41,9 +61,10 @@ func (s *Server) Write(ctx context.Context, request WriteRequest) (any, error) {
 			return nil, fmt.Errorf("failed to remove tuple '%s': %w", tuple, err)
 		}
 	}
+
 	return nil, nil
 }
 
-func NewServer(ts *TupleStore) *Server {
-	return &Server{tuples: ts}
+func NewServer(schema SchemaDef, ts *TupleStore) *Server {
+	return &Server{schema: schema, tuples: ts}
 }
