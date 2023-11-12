@@ -147,3 +147,91 @@ func TestUnion(t *testing.T) {
 		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
 	})
 }
+
+func TestComputedViaTupleset(t *testing.T) {
+	ctx := context.Background()
+
+	conn, err := pgxpool.New(ctx, "")
+	if err != nil {
+		panic(err)
+	}
+	cleanup(ctx, conn)
+
+	schema := SchemaDef{
+		Types: []SchemaTypeDef{
+			{
+				Name: "shop",
+				Relations: []SchemaRelationDef{
+					{Name: "owner"},
+				},
+			},
+			{
+				Name: "item",
+				Relations: []SchemaRelationDef{
+					{Name: "seller"},
+					{Name: "can_change_price", Value: NewComputedVia("seller", "owner")},
+				},
+			},
+		},
+	}
+
+	s := NewServer(schema, NewTupleStore(conn))
+
+	t.Run("FailsAtStart", func(t *testing.T) {
+		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		_, err := s.Write(ctx, WriteRequest{
+			Add: []Tuple{
+				MustNewTuple("item:banana#seller@shop:asda"),
+				MustNewTuple("shop:asda#owner@user:dom"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")))
+	})
+}
+
+func TestStatic(t *testing.T) {
+	ctx := context.Background()
+
+	conn, err := pgxpool.New(ctx, "")
+	if err != nil {
+		panic(err)
+	}
+	cleanup(ctx, conn)
+
+	schema := SchemaDef{
+		Types: []SchemaTypeDef{
+			{
+				Name: "group",
+				Relations: []SchemaRelationDef{
+					{Name: "member"},
+				},
+			},
+			{
+				Name: "item",
+				Relations: []SchemaRelationDef{
+					{Name: "can_change_price", Value: NewStatic(MustNewTupleset("group:asda#member"))},
+				},
+			},
+		},
+	}
+
+	s := NewServer(schema, NewTupleStore(conn))
+
+	t.Run("FailsAtStart", func(t *testing.T) {
+		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		_, err := s.Write(ctx, WriteRequest{
+			Add: []Tuple{
+				MustNewTuple("group:asda#member@user:dom"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")))
+	})
+}

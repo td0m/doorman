@@ -76,6 +76,10 @@ func NewComputed(rel string) ComputedUsersetDef {
 	return ComputedUsersetDef{rel}
 }
 
+func NewComputedVia(tuplerel, usersetrel string) ComputedUsersetViaTuplesetDef {
+	return ComputedUsersetViaTuplesetDef{TuplesetRelation: tuplerel, UsersetRelation: usersetrel}
+}
+
 func NewUnion(args ...SetDef) UnionDef {
 	return UnionDef{Args: args}
 }
@@ -84,4 +88,38 @@ func (c ComputedUsersetDef) ToSet(ctx context.Context, r Resolver, atObject stri
 	return ComputedUserset{
 		Tupleset: Tupleset{Object: atObject, Relation: c.Relation},
 	}, nil
+}
+
+type ComputedUsersetViaTuplesetDef struct {
+	TuplesetRelation string
+	UsersetRelation  string
+}
+
+type StaticComputedUsersetDef struct {
+	Userset Tupleset
+}
+
+func (d StaticComputedUsersetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
+	return LazyDirect{Tupleset: d.Userset}, nil
+}
+
+func NewStatic(tupleset Tupleset) StaticComputedUsersetDef {
+	return StaticComputedUsersetDef{Userset: tupleset}
+}
+
+func (c ComputedUsersetViaTuplesetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
+	ats, err := r.ListSubjects(ctx, Tupleset{Object: atObject, Relation: c.TuplesetRelation})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list subjects: %w", err)
+	}
+
+	union := UnionDef{
+		Args: make([]SetDef, len(ats)),
+	}
+
+	for i, at := range ats {
+		union.Args[i] = NewStatic(Tupleset{Object: at, Relation: c.UsersetRelation})
+	}
+
+	return union.ToSet(ctx, r, atObject)
 }
