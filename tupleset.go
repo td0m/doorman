@@ -41,6 +41,7 @@ func MustNewTupleset(s string) Tupleset {
 type LazyResolver interface {
 	Check(ctx context.Context, tuple Tuple) error
 	CheckDirect(ctx context.Context, tuple Tuple) error
+	ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error)
 }
 
 type LazyUserset interface {
@@ -91,7 +92,6 @@ func (c ComputedUserset) String() string {
 	return fmt.Sprintf("(computed %s)", c.Tupleset)
 }
 
-
 func GetObjectTypeAndID(obj string) (string, string) {
 	parts := strings.SplitN(obj, ":", 2)
 	if len(parts) != 2 {
@@ -116,20 +116,31 @@ func (d LazyDirect) String() string {
 	return fmt.Sprintf("(direct %s)", d.Tupleset)
 }
 
-// type ComputedUsersetViaTupleset struct {
-// 	Tupleset        Tupleset
-// 	UsersetRelation string
-// }
-//
-// func (u ComputedUsersetViaTupleset) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
-// 	subs, err := resolver.ListSubjects(ctx, u.Tupleset)
-// 	if err != nil {
-// 		return false, fmt.Errorf("failed to list subjects: %w", err)
-// 	}
-// 	for _, sub := range subs {
-// 		ts := Tupleset{}
-// 	}
-// 	// TODO: filter
-// 	fmt.Println("resolve via", u)
-// 	return false, nil
-// }
+type ComputedUsersetViaTupleset struct {
+	Tupleset        Tupleset
+	UsersetRelation string
+}
+
+func (u ComputedUsersetViaTupleset) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
+	subs, err := resolver.ListSubjects(ctx, u.Tupleset)
+	if err != nil {
+		return false, fmt.Errorf("failed to list subjects: %w", err)
+	}
+
+	for _, obj := range subs {
+		tuple := Tuple{Object: obj, Relation: u.UsersetRelation, Subject: sub}
+		err := resolver.Check(ctx, tuple)
+		if err != nil && err != ErrNoConnection {
+			return false, err
+		}
+		if err == nil {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (d ComputedUsersetViaTupleset) String() string {
+	return fmt.Sprintf("(computed_via %s#%s)", d.Tupleset, d.UsersetRelation)
+}

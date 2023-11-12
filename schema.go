@@ -9,7 +9,7 @@ type SchemaDef struct {
 	Types []SchemaTypeDef
 }
 
-func (schema SchemaDef) Resolve(ctx context.Context, resolver Resolver, tuple Tuple) (LazyUserset, error) {
+func (schema SchemaDef) Resolve(ctx context.Context, tuple Tuple) (LazyUserset, error) {
 	otype, _ := GetObjectTypeAndID(tuple.Object)
 	for _, typ := range schema.Types {
 		if typ.Name == otype {
@@ -19,7 +19,7 @@ func (schema SchemaDef) Resolve(ctx context.Context, resolver Resolver, tuple Tu
 					if rel.Value == nil {
 						return direct, nil
 					}
-					val, err := rel.Value.ToSet(ctx, resolver, tuple.Object)
+					val, err := rel.Value.ToSet(ctx, tuple.Object)
 					if err != nil {
 						return nil, err
 					}
@@ -43,22 +43,18 @@ type SchemaTypeDef struct {
 	Relations []SchemaRelationDef
 }
 
-type Resolver interface {
-	ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error)
-}
-
 type SetDef interface {
-	ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error)
+	ToSet(ctx context.Context, atObject string) (LazyUserset, error)
 }
 
 type UnionDef struct {
 	Args []SetDef
 }
 
-func (d UnionDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
+func (d UnionDef) ToSet(ctx context.Context, atObject string) (LazyUserset, error) {
 	usersets := make([]LazyUserset, len(d.Args))
 	for i, def := range d.Args {
-		userset, err := def.ToSet(ctx, r, atObject)
+		userset, err := def.ToSet(ctx, atObject)
 		if err != nil {
 			return nil, fmt.Errorf("failed: %w", err)
 		}
@@ -84,7 +80,7 @@ func NewUnion(args ...SetDef) UnionDef {
 	return UnionDef{Args: args}
 }
 
-func (c ComputedUsersetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
+func (c ComputedUsersetDef) ToSet(ctx context.Context, atObject string) (LazyUserset, error) {
 	return ComputedUserset{
 		Tupleset: Tupleset{Object: atObject, Relation: c.Relation},
 	}, nil
@@ -99,7 +95,7 @@ type StaticComputedUsersetDef struct {
 	Userset Tupleset
 }
 
-func (d StaticComputedUsersetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
+func (d StaticComputedUsersetDef) ToSet(ctx context.Context, atObject string) (LazyUserset, error) {
 	return LazyDirect{Tupleset: d.Userset}, nil
 }
 
@@ -107,19 +103,9 @@ func NewStatic(tupleset Tupleset) StaticComputedUsersetDef {
 	return StaticComputedUsersetDef{Userset: tupleset}
 }
 
-func (c ComputedUsersetViaTuplesetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
-	ats, err := r.ListSubjects(ctx, Tupleset{Object: atObject, Relation: c.TuplesetRelation})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list subjects: %w", err)
-	}
-
-	union := UnionDef{
-		Args: make([]SetDef, len(ats)),
-	}
-
-	for i, at := range ats {
-		union.Args[i] = NewStatic(Tupleset{Object: at, Relation: c.UsersetRelation})
-	}
-
-	return union.ToSet(ctx, r, atObject)
+func (c ComputedUsersetViaTuplesetDef) ToSet(ctx context.Context, atObject string) (LazyUserset, error) {
+	return ComputedUsersetViaTupleset{
+		Tupleset:        Tupleset{Object: atObject, Relation: c.TuplesetRelation},
+		UsersetRelation: c.UsersetRelation,
+	}, nil
 }

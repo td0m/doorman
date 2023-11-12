@@ -32,7 +32,7 @@ func (s Server) CheckDirect(ctx context.Context, tuple Tuple) error {
 }
 
 func (s *Server) Check(ctx context.Context, tuple Tuple) error {
-	lazyUserset, err := s.schema.Resolve(ctx, s.tuples, tuple)
+	lazyUserset, err := s.schema.Resolve(ctx, tuple)
 	if err != nil {
 		return fmt.Errorf("failed resolving schema: %w", err)
 	}
@@ -49,6 +49,10 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) error {
 	}
 
 	return ErrNoConnection
+}
+
+func (s *Server) ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error) {
+	return s.tuples.ListSubjects(ctx, tupleset)
 }
 
 func (s *Server) Write(ctx context.Context, request WriteRequest) (any, error) {
