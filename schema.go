@@ -15,7 +15,7 @@ func (schema SchemaDef) Resolve(ctx context.Context, resolver Resolver, tuple Tu
 		if typ.Name == otype {
 			for _, rel := range typ.Relations {
 				if rel.Name == tuple.Relation {
-					direct := LazyDirect{Userset: Userset{Object: tuple.Object, Relation: tuple.Relation}}
+					direct := LazyDirect{Tupleset: Tupleset{Object: tuple.Object, Relation: tuple.Relation}}
 					if rel.Value == nil {
 						return direct, nil
 					}
@@ -44,7 +44,7 @@ type SchemaTypeDef struct {
 }
 
 type Resolver interface {
-	ListSubjects(ctx context.Context, userset Userset) ([]string, error)
+	ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error)
 }
 
 type SetDef interface {
@@ -82,6 +82,6 @@ func NewUnion(args ...SetDef) UnionDef {
 
 func (c ComputedUsersetDef) ToSet(ctx context.Context, r Resolver, atObject string) (LazyUserset, error) {
 	return ComputedUserset{
-		Userset: Userset{Object: atObject, Relation: c.Relation},
+		Tupleset: Tupleset{Object: atObject, Relation: c.Relation},
 	}, nil
 }

@@ -11,7 +11,7 @@ type TupleStore struct {
 	conn *pgxpool.Pool
 }
 
-func (t *TupleStore) ListSubjects(ctx context.Context, userset Userset) ([]string, error) {
+func (t *TupleStore) ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error) {
 	query := `
 		select subject
 		from tuples
@@ -21,7 +21,7 @@ func (t *TupleStore) ListSubjects(ctx context.Context, userset Userset) ([]strin
 	`
 
 	users := []string{}
-	rows, err := t.conn.Query(ctx, query, userset.Object, userset.Relation)
+	rows, err := t.conn.Query(ctx, query, tupleset.Object, tupleset.Relation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}

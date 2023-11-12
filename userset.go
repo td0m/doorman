@@ -7,30 +7,30 @@ import (
 	"strings"
 )
 
-type Userset struct {
+type Tupleset struct {
 	Object   string
 	Relation string
 }
 
-func (u Userset) String() string {
-	return u.Object + "#" + u.Relation
+func (t Tupleset) String() string {
+	return t.Object + "#" + t.Relation
 }
 
-func NewUserset(s string) (Userset, error) {
+func NewTupleset(s string) (Tupleset, error) {
 	parts := strings.SplitN(s, "#", 2)
 	if len(parts) != 2 {
-		return Userset{}, errors.New("expected to contain exactly one '#'")
+		return Tupleset{}, errors.New("expected to contain exactly one '#'")
 	}
 
 	otype, _ := GetObjectTypeAndID(parts[0])
 	if otype == "" {
-		return Userset{}, errors.New("object must have a type")
+		return Tupleset{}, errors.New("object must have a type")
 	}
-	return Userset{Object: parts[0], Relation: parts[1]}, nil
+	return Tupleset{Object: parts[0], Relation: parts[1]}, nil
 }
 
-func MustNewUserset(s string) Userset {
-	userset, err := NewUserset(s)
+func MustNewTupleset(s string) Tupleset {
+	userset, err := NewTupleset(s)
 	if err != nil {
 		panic(err)
 	}
@@ -66,11 +66,11 @@ func (s LazyUnionUserset) Has(ctx context.Context, resolver LazyResolver, sub st
 }
 
 type ComputedUserset struct {
-	Userset Userset
+	Tupleset Tupleset
 }
 
 func (c ComputedUserset) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
-	err := resolver.Check(ctx, Tuple{Object: c.Userset.Object, Relation: c.Userset.Relation, Subject: sub})
+	err := resolver.Check(ctx, Tuple{Object: c.Tupleset.Object, Relation: c.Tupleset.Relation, Subject: sub})
 	if err != nil && err != ErrNoConnection {
 		return false, err
 	}
@@ -87,11 +87,11 @@ func GetObjectTypeAndID(obj string) (string, string) {
 }
 
 type LazyDirect struct {
-	Userset Userset
+	Tupleset Tupleset
 }
 
 func (u LazyDirect) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
-	err := resolver.CheckDirect(ctx, Tuple{Object: u.Userset.Object, Relation: u.Userset.Relation, Subject: sub})
+	err := resolver.CheckDirect(ctx, Tuple{Object: u.Tupleset.Object, Relation: u.Tupleset.Relation, Subject: sub})
 	if err != nil && err != ErrNoConnection {
 		return false, fmt.Errorf("failed direct check: %w", err)
 	}

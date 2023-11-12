@@ -8,7 +8,7 @@ import (
 type Tuple struct {
 	Object   string
 	Relation string
-	Subject   string
+	Subject  string
 }
 
 func (t Tuple) String() string {
@@ -22,7 +22,7 @@ func NewTuple(s string) (Tuple, error) {
 	}
 
 	setStr, sub := parts[0], parts[1]
-	userset, err := NewUserset(setStr)
+	tupleset, err := NewTupleset(setStr)
 	if err != nil {
 		return Tuple{}, err
 	}
@@ -32,7 +32,7 @@ func NewTuple(s string) (Tuple, error) {
 		return Tuple{}, errors.New("subject must have a type")
 	}
 
-	return Tuple{Subject: sub, Object: userset.Object, Relation: userset.Relation}, nil
+	return Tuple{Subject: sub, Object: tupleset.Object, Relation: tupleset.Relation}, nil
 }
 
 func MustNewTuple(s string) Tuple {
