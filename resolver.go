@@ -8,19 +8,6 @@ import (
 
 const concurrently = true
 
-type TupleResolver interface {
-	Check(ctx context.Context, tuple Tuple) (bool, error)
-}
-
-//
-// type DirectTupleResolver struct {
-// 	store *TupleStore
-// }
-//
-// func (r *DirectTupleResolver) Check(ctx context.Context, tuple Tuple) (bool, error) {
-// 	return
-// }
-
 type ComputedTupleResolver struct {
 	schema SchemaDef
 	server *Server
@@ -32,7 +19,6 @@ func (r *ComputedTupleResolver) Check(ctx context.Context, tuple Tuple) (bool, e
 		return false, fmt.Errorf("resolve failed: %w", err)
 	}
 
-	// should we check direct?
 	if setdef == nil {
 		return false, nil
 	}
@@ -48,11 +34,6 @@ func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple 
 	switch s := userset.(type) {
 	case UsersetUnion:
 		for _, def := range s.Args {
-			// userset, err := arg.ToUserset(ctx, tuple.Object)
-			// if err != nil {
-			// 	return false, fmt.Errorf("resolve failed: %w", err)
-			// }
-
 			success, err := r.check(ctx, def, tuple)
 			if err != nil {
 				return false, err
