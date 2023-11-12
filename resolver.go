@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+const concurrently = true
+
 type UsersetResolver interface {
 	Check(ctx context.Context, userset Userset, subject string) (bool, error)
 }
@@ -47,14 +49,49 @@ func (r DirectResolver) Check(ctx context.Context, userset Userset, subject stri
 		if err != nil {
 			return false, fmt.Errorf("failed to list subjects: %w", err)
 		}
-		for _, obj := range subs {
-			tuple := Tuple{Object: obj, Relation: s.UsersetRelation, Subject: subject}
-			err := r.server.Check(ctx, tuple)
-			if err != nil && err != ErrNoConnection {
-				return false, err
+
+		if len(subs) == 0 {
+			return false, nil
+		}
+
+		if concurrently {
+			jobs := make(chan error)
+			success := make(chan bool, 1)
+			for _, obj := range subs {
+				obj := obj
+				go func() {
+					tuple := Tuple{Object: obj, Relation: s.UsersetRelation, Subject: subject}
+					err := r.server.Check(ctx, tuple)
+					if err != nil && err != ErrNoConnection {
+						jobs <- err
+						return
+					}
+					if err == nil {
+						success <- true
+					}
+					jobs <- nil
+				}()
 			}
-			if err == nil {
-				return true, nil
+			for i := 0; i < len(subs); i++ {
+				select {
+				case err := <-jobs:
+					if err != nil {
+						return false, err
+					}
+				case <-success:
+					return true, nil
+				}
+			}
+		} else {
+			for _, obj := range subs {
+				tuple := Tuple{Object: obj, Relation: s.UsersetRelation, Subject: subject}
+				err := r.server.Check(ctx, tuple)
+				if err != nil && err != ErrNoConnection {
+					return false, err
+				}
+				if err == nil {
+					return true, nil
+				}
 			}
 		}
 		return false, nil

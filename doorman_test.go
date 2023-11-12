@@ -181,6 +181,18 @@ func TestComputedViaTupleset(t *testing.T) {
 		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
 	})
 
+	t.Run("FailsOnUnrelated", func(t *testing.T) {
+		_, err := s.Write(ctx, WriteRequest{
+			Add: []Tuple{
+				MustNewTuple("item:banana#seller@shop:asda"),
+				MustNewTuple("item:banana#seller@shop:wallmart"),
+				MustNewTuple("item:banana#seller@shop:lidl"),
+			},
+		})
+		require.NoError(t, err)
+		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		_, err := s.Write(ctx, WriteRequest{
 			Add: []Tuple{
