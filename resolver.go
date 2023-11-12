@@ -9,32 +9,28 @@ import (
 const concurrently = true
 
 type ComputedTupleResolver struct {
-	schema SchemaDef
+	schema Schema
 	server *Server
 }
 
 func (r *ComputedTupleResolver) Check(ctx context.Context, tuple Tuple) (bool, error) {
-	setdef, err := r.schema.GetDef(ctx, Tupleset{Object: tuple.Object, Relation: tuple.Relation})
+	expr, err := r.schema.GetExpr(ctx, Tupleset{Object: tuple.Object, Relation: tuple.Relation})
 	if err != nil {
 		return false, fmt.Errorf("resolve failed: %w", err)
 	}
 
-	if setdef == nil {
+	if expr == nil {
 		return false, nil
 	}
 
-	return r.check(ctx, setdef, tuple)
+	return r.check(ctx, expr, tuple)
 }
 
-func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple Tuple) (bool, error) {
-	userset, err := setdef.ToUserset(ctx, tuple.Object)
-	if err != nil {
-		return false, fmt.Errorf("failed converting to userset: %w", err)
-	}
-	switch s := userset.(type) {
-	case UsersetUnion:
-		for _, def := range s.Args {
-			success, err := r.check(ctx, def, tuple)
+func (r *ComputedTupleResolver) check(ctx context.Context, expr Expr, tuple Tuple) (bool, error) {
+	switch expr := expr.(type) {
+	case Union:
+		for _, e := range expr {
+			success, err := r.check(ctx, e, tuple)
 			if err != nil {
 				return false, err
 			}
@@ -45,14 +41,14 @@ func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple 
 		}
 		return false, nil
 
-	case ComputedUserset:
-		return r.server.Check(ctx, Tuple{Object: s.Tupleset.Object, Relation: s.Tupleset.Relation, Subject: tuple.Subject})
+	case Tupleset:
+		return r.server.Check(ctx, Tuple{Object: expr.Object, Relation: expr.Relation, Subject: tuple.Subject})
 
-	case StaticTupleset:
-		return r.server.Check(ctx, Tuple{Object: s.Tupleset.Object, Relation: s.Tupleset.Relation, Subject: tuple.Subject})
+	case Sibling:
+		return r.server.Check(ctx, Tuple{Object: tuple.Object, Relation: string(expr), Subject: tuple.Subject})
 
-	case ComputedUsersetViaTupleset:
-		subs, err := r.server.ListSubjects(ctx, s.Tupleset)
+	case ViaSibling:
+		subs, err := r.server.ListSubjects(ctx, Tupleset{Object: tuple.Object, Relation: expr.SiblingRelation})
 		if err != nil {
 			return false, fmt.Errorf("failed to list subjects: %w", err)
 		}
@@ -67,7 +63,7 @@ func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple 
 			for _, obj := range subs {
 				obj := obj
 				go func() {
-					tuple := Tuple{Object: obj, Relation: s.UsersetRelation, Subject: tuple.Subject}
+					tuple := Tuple{Object: obj, Relation: expr.Relation, Subject: tuple.Subject}
 					yes, err := r.server.Check(ctx, tuple)
 					if err != nil {
 						jobs <- err
@@ -91,7 +87,7 @@ func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple 
 			}
 		} else {
 			for _, obj := range subs {
-				tuple := Tuple{Object: obj, Relation: s.UsersetRelation, Subject: tuple.Subject}
+				tuple := Tuple{Object: obj, Relation: expr.Relation, Subject: tuple.Subject}
 				yes, err := r.server.Check(ctx, tuple)
 				if err != nil {
 					return false, err
@@ -105,7 +101,7 @@ func (r *ComputedTupleResolver) check(ctx context.Context, setdef SetDef, tuple 
 	case NilSet:
 		return false, nil
 	default:
-		panic("unhandled type: " + reflect.TypeOf(s).String())
+		panic("unhandled type: " + reflect.TypeOf(expr).String())
 	}
 }
 

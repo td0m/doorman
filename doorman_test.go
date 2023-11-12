@@ -27,11 +27,11 @@ func TestDirect(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "team",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "member"},
 				},
 			},
@@ -63,13 +63,13 @@ func TestComputed(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "item",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "owner"},
-					{Name: "can_retrieve", Value: NewComputed("owner")},
+					{Name: "can_retrieve", Value: Sibling("owner")},
 				},
 			},
 		},
@@ -100,18 +100,18 @@ func TestComputedButSubjectIsTupleset(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "group",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "child"},
-					{Name: "member", Value: NewComputedVia("child", "member")},
+					{Name: "member", Value: ViaSibling{SiblingRelation: "child", Relation: "member"}},
 				},
 			},
 			{
 				Name: "shop",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "owner"},
 				},
 			},
@@ -156,15 +156,15 @@ func TestUnion(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "item",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "owner"},
 					{Name: "reader"},
-					{Name: "can_write", Value: NewComputed("reader")},
-					{Name: "can_retrieve", Value: NewUnion(NewComputed("owner"), NewComputed("can_write"))},
+					{Name: "can_write", Value: Sibling("reader")},
+					{Name: "can_retrieve", Value: Union{Sibling("owner"), Sibling("can_write")}},
 				},
 			},
 		},
@@ -232,19 +232,19 @@ func TestComputedViaTupleset(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "shop",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "owner"},
 				},
 			},
 			{
 				Name: "item",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "seller"},
-					{Name: "can_change_price", Value: NewComputedVia("seller", "owner")},
+					{Name: "can_change_price", Value: ViaSibling{SiblingRelation: "seller", Relation: "owner"}},
 				},
 			},
 		},
@@ -296,18 +296,18 @@ func TestStatic(t *testing.T) {
 	}
 	cleanup(ctx, conn)
 
-	schema := SchemaDef{
-		Types: []SchemaTypeDef{
+	schema := Schema{
+		Types: []SchemaType{
 			{
 				Name: "group",
-				Relations: []SchemaRelationDef{
+				Relations: []SchemaRelation{
 					{Name: "member"},
 				},
 			},
 			{
 				Name: "item",
-				Relations: []SchemaRelationDef{
-					{Name: "can_change_price", Value: NewStatic(MustNewTupleset("group:asda#member"))},
+				Relations: []SchemaRelation{
+					{Name: "can_change_price", Value: MustNewTupleset("group:asda#member")},
 				},
 			},
 		},

@@ -14,7 +14,7 @@ type WriteRequest struct {
 }
 
 type Server struct {
-	schema SchemaDef
+	schema Schema
 	tuples *TupleStore
 }
 
@@ -76,6 +76,6 @@ func (s *Server) Write(ctx context.Context, request WriteRequest) (any, error) {
 	return nil, nil
 }
 
-func NewServer(schema SchemaDef, ts *TupleStore) *Server {
+func NewServer(schema Schema, ts *TupleStore) *Server {
 	return &Server{schema: schema, tuples: ts}
 }
