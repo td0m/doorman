@@ -40,14 +40,14 @@ func TestDirect(t *testing.T) {
 
 	s := NewServer(schema, NewTupleStore(conn))
 
-	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("team:admins#member@dom")), ErrNoConnection)
+	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("team:admins#member@user:dom")), ErrNoConnection)
 
 	_, err = s.Write(ctx, WriteRequest{
-		Add: []Tuple{MustNewTuple("team:admins#member@dom")},
+		Add: []Tuple{MustNewTuple("team:admins#member@user:dom")},
 	})
 	require.NoError(t, err)
 
-	assert.Nil(t, s.Check(ctx, MustNewTuple("team:admins#member@dom")))
+	assert.Nil(t, s.Check(ctx, MustNewTuple("team:admins#member@user:dom")))
 }
 
 func TestComputed(t *testing.T) {
@@ -73,14 +73,14 @@ func TestComputed(t *testing.T) {
 
 	s := NewServer(schema, NewTupleStore(conn))
 
-	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")), ErrNoConnection)
+	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
 
 	_, err = s.Write(ctx, WriteRequest{
-		Add: []Tuple{MustNewTuple("item:banana#owner@dom")},
+		Add: []Tuple{MustNewTuple("item:banana#owner@user:dom")},
 	})
 	require.NoError(t, err)
 
-	assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")))
+	assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
 }
 
 func TestUnion(t *testing.T) {
@@ -108,42 +108,42 @@ func TestUnion(t *testing.T) {
 	s := NewServer(schema, NewTupleStore(conn))
 
 	t.Run("FailsAtStart", func(t *testing.T) {
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")), ErrNoConnection)
+		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
 	})
 
 	t.Run("SuccessWhenOwner", func(t *testing.T) {
 		_, err = s.Write(ctx, WriteRequest{
-			Add: []Tuple{MustNewTuple("item:banana#owner@dom")},
+			Add: []Tuple{MustNewTuple("item:banana#owner@user:dom")},
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")))
+		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
 	})
 
 	t.Run("SuccessWhenOwnerAndReader", func(t *testing.T) {
 		_, err = s.Write(ctx, WriteRequest{
-			Add: []Tuple{MustNewTuple("item:banana#reader@dom")},
+			Add: []Tuple{MustNewTuple("item:banana#reader@user:dom")},
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")))
+		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
 	})
 
 	t.Run("SuccessWhenReader", func(t *testing.T) {
 		_, err = s.Write(ctx, WriteRequest{
-			Remove: []Tuple{MustNewTuple("item:banana#owner@dom")},
+			Remove: []Tuple{MustNewTuple("item:banana#owner@user:dom")},
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")))
+		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
 	})
 
 	t.Run("FailureWhenNeither", func(t *testing.T) {
 		_, err = s.Write(ctx, WriteRequest{
-			Remove: []Tuple{MustNewTuple("item:banana#reader@dom")},
+			Remove: []Tuple{MustNewTuple("item:banana#reader@user:dom")},
 		})
 		require.NoError(t, err)
 
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@dom")), ErrNoConnection)
+		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
 	})
 }

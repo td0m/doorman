@@ -26,6 +26,12 @@ func NewTuple(s string) (Tuple, error) {
 	if err != nil {
 		return Tuple{}, err
 	}
+
+	stype, _ := GetObjectTypeAndID(sub)
+	if stype == "" {
+		return Tuple{}, errors.New("subject must have a type")
+	}
+
 	return Tuple{Subject: sub, Object: userset.Object, Relation: userset.Relation}, nil
 }
 
