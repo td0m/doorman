@@ -3,7 +3,6 @@ package doorman
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 type LazyResolver interface {
@@ -17,15 +16,22 @@ type Userset interface {
 }
 
 type UsersetUnion struct {
-	Args []Userset
+	Args []SetDef
+}
+
+type NilSet struct{}
+
+func (d NilSet) String() string {
+	return "nil"
 }
 
 func (d UsersetUnion) String() string {
-	argStrs := make([]string, len(d.Args))
-	for i, arg := range d.Args {
-		argStrs[i] = arg.String()
-	}
-	return fmt.Sprintf("(union %v)", strings.Join(argStrs, " "))
+	return "union?"
+	// argStrs := make([]string, len(d.Args))
+	// for i, arg := range d.Args {
+	// 	argStrs[i] = arg.String()
+	// }
+	// return fmt.Sprintf("(union %v)", strings.Join(argStrs, " "))
 }
 
 type ComputedUserset struct {
@@ -36,12 +42,12 @@ func (c ComputedUserset) String() string {
 	return fmt.Sprintf("(computed %s)", c.Tupleset)
 }
 
-type DirectUserset struct {
+type StaticTupleset struct {
 	Tupleset Tupleset
 }
 
-func (d DirectUserset) String() string {
-	return fmt.Sprintf("(direct %s)", d.Tupleset)
+func (d StaticTupleset) String() string {
+	return fmt.Sprintf("(static %s)", d.Tupleset)
 }
 
 type ComputedUsersetViaTupleset struct {

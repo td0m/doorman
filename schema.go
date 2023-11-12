@@ -9,28 +9,19 @@ type SchemaDef struct {
 	Types []SchemaTypeDef
 }
 
-func (schema SchemaDef) Resolve(ctx context.Context, tuple Tuple) (Userset, error) {
-	otype, _ := GetObjectTypeAndID(tuple.Object)
+func (schema SchemaDef) GetDef(ctx context.Context, tupleset Tupleset) (SetDef, error) {
+	otype, _ := GetObjectTypeAndID(tupleset.Object)
 	for _, typ := range schema.Types {
 		if typ.Name == otype {
 			for _, rel := range typ.Relations {
-				if rel.Name == tuple.Relation {
-					direct := DirectUserset{Tupleset: Tupleset{Object: tuple.Object, Relation: tuple.Relation}}
-					if rel.Value == nil {
-						return direct, nil
-					}
-					val, err := rel.Value.ToSet(ctx, tuple.Object)
-					if err != nil {
-						return nil, err
-					}
-					union := UsersetUnion{Args: []Userset{direct, val}}
-					return union, nil
+				if rel.Name == tupleset.Relation {
+					return rel.Value, nil
 				}
 			}
-			return nil, fmt.Errorf("type found but not the relation '%s' in %s", tuple.Relation, tuple)
+			return nil, fmt.Errorf("type found but not the relation '%s' in %s", tupleset.Relation, tupleset)
 		}
 	}
-	return nil, fmt.Errorf("failed to find type '%s' in: %s", otype, tuple)
+	return nil, fmt.Errorf("failed to find type '%s' in: %s", otype, tupleset)
 }
 
 type SchemaRelationDef struct {
@@ -44,24 +35,24 @@ type SchemaTypeDef struct {
 }
 
 type SetDef interface {
-	ToSet(ctx context.Context, atObject string) (Userset, error)
+	ToUserset(ctx context.Context, atObject string) (Userset, error)
 }
 
 type UnionDef struct {
 	Args []SetDef
 }
 
-func (d UnionDef) ToSet(ctx context.Context, atObject string) (Userset, error) {
-	usersets := make([]Userset, len(d.Args))
-	for i, def := range d.Args {
-		userset, err := def.ToSet(ctx, atObject)
-		if err != nil {
-			return nil, fmt.Errorf("failed: %w", err)
-		}
-		usersets[i] = userset
-	}
+func (d UnionDef) ToUserset(ctx context.Context, atObject string) (Userset, error) {
+	// usersets := make([]Tupleset, len(d.Args))
+	// for i, def := range d.Args {
+	// 	userset, err := def.ToUserset(ctx, atObject)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed: %w", err)
+	// 	}
+	// 	usersets[i] = userset
+	// }
 
-	return UsersetUnion{Args: usersets}, nil
+	return UsersetUnion{Args: d.Args}, nil
 }
 
 type ComputedUsersetDef struct {
@@ -80,7 +71,7 @@ func NewUnion(args ...SetDef) UnionDef {
 	return UnionDef{Args: args}
 }
 
-func (c ComputedUsersetDef) ToSet(ctx context.Context, atObject string) (Userset, error) {
+func (c ComputedUsersetDef) ToUserset(ctx context.Context, atObject string) (Userset, error) {
 	return ComputedUserset{
 		Tupleset: Tupleset{Object: atObject, Relation: c.Relation},
 	}, nil
@@ -95,15 +86,15 @@ type StaticComputedUsersetDef struct {
 	Userset Tupleset
 }
 
-func (d StaticComputedUsersetDef) ToSet(ctx context.Context, atObject string) (Userset, error) {
-	return DirectUserset{Tupleset: d.Userset}, nil
+func (d StaticComputedUsersetDef) ToUserset(ctx context.Context, atObject string) (Userset, error) {
+	return StaticTupleset{Tupleset: d.Userset}, nil
 }
 
 func NewStatic(tupleset Tupleset) StaticComputedUsersetDef {
 	return StaticComputedUsersetDef{Userset: tupleset}
 }
 
-func (c ComputedUsersetViaTuplesetDef) ToSet(ctx context.Context, atObject string) (Userset, error) {
+func (c ComputedUsersetViaTuplesetDef) ToUserset(ctx context.Context, atObject string) (Userset, error) {
 	return ComputedUsersetViaTupleset{
 		Tupleset:        Tupleset{Object: atObject, Relation: c.TuplesetRelation},
 		UsersetRelation: c.UsersetRelation,

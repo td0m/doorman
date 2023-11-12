@@ -51,7 +51,7 @@ func (t *TupleStore) Add(ctx context.Context, tuple Tuple) error {
 	return nil
 }
 
-func (t *TupleStore) Exists(ctx context.Context, tuple Tuple) error {
+func (t *TupleStore) Exists(ctx context.Context, tuple Tuple) (bool, error) {
 	query := `
 		select exists(
 			select 1
@@ -65,13 +65,10 @@ func (t *TupleStore) Exists(ctx context.Context, tuple Tuple) error {
 
 	var exists bool
 	if err := t.conn.QueryRow(ctx, query, tuple.Object, tuple.Relation, tuple.Subject).Scan(&exists); err != nil {
-		return fmt.Errorf("query failed: %w", err)
+		return false, fmt.Errorf("query failed: %w", err)
 	}
 
-	if !exists {
-		return ErrNoConnection
-	}
-	return nil
+	return exists, nil
 }
 
 func (t *TupleStore) Remove(ctx context.Context, tuple Tuple) error {

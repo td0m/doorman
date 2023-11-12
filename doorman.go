@@ -18,41 +18,65 @@ type Server struct {
 	tuples *TupleStore
 }
 
-func (s Server) CheckDirect(ctx context.Context, tuple Tuple) error {
-	// Check direct connection
-	err := s.tuples.Exists(ctx, tuple)
-	if err == nil {
-		return nil
-	}
-	if err != ErrNoConnection {
-		return fmt.Errorf("failed checking tuple store: %w", err)
-	}
+// func (s Server) CheckDirect(ctx context.Context, tuple Tuple) error {
+// 	// Check direct connection
+// 	ok, err := s.tuples.Exists(ctx, tuple)
+// 	if err != nil {
+// 		return false, nil
+// 	}
+// 	return ErrNoConnection
+// }
 
-	return ErrNoConnection
-}
-
-func (s *Server) Check(ctx context.Context, tuple Tuple) error {
-	lazyUserset, err := s.schema.Resolve(ctx, tuple)
+func (s *Server) Check(ctx context.Context, tuple Tuple) (bool, error) {
+	success, err := s.tuples.Exists(ctx, tuple)
 	if err != nil {
-		return fmt.Errorf("failed resolving schema: %w", err)
+		return false, fmt.Errorf("failed to read tuples in db: %w", err)
+	}
+	if success {
+		return true, nil
 	}
 
-	fmt.Println(tuple, lazyUserset)
-
-	resolver := DirectResolver{
-		server: s,
-	}
-
-	ok, err := resolver.Check(ctx, lazyUserset, tuple.Subject)
+	computed := ComputedTupleResolver{server: s, schema: s.schema}
+	success, err = computed.Check(ctx, tuple)
 	if err != nil {
-		return fmt.Errorf("failed computing lazy userset: %w", err)
+		return false, err
 	}
-
-	if ok {
-		return nil
+	if success {
+		return true, nil
 	}
-
-	return ErrNoConnection
+	return false, nil
+	// // Check Direct
+	// err := s.CheckDirect(ctx, tuple)
+	// if err != nil && err != ErrNoConnection {
+	// 	return fmt.Errorf("failed direct check: %w", err)
+	// }
+	// if err == nil {
+	// 	return nil
+	// }
+	//
+	// lazyUserset, err := s.schema.Resolve(ctx, tuple)
+	// if err != nil {
+	// 	return fmt.Errorf("failed resolving schema: %w", err)
+	// }
+	//
+	// if false {
+	// 	fmt.Println(tuple, lazyUserset)
+	// }
+	//
+	// resolver := DirectResolver{
+	// 	server: s,
+	// }
+	// // cached := NewCached(resolver)
+	//
+	// ok, err := resolver.Check(ctx, lazyUserset, tuple.Subject)
+	// if err != nil {
+	// 	return fmt.Errorf("failed computing lazy userset: %w", err)
+	// }
+	//
+	// if ok {
+	// 	return nil
+	// }
+	// return ErrNoConnection
 }
 
 func (s *Server) ListSubjects(ctx context.Context, tupleset Tupleset) ([]string, error) {

@@ -40,14 +40,18 @@ func TestDirect(t *testing.T) {
 
 	s := NewServer(schema, NewTupleStore(conn))
 
-	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("team:admins#member@user:dom")), ErrNoConnection)
+	success, err := s.Check(ctx, MustNewTuple("team:admins#member@user:dom"))
+	require.NoError(t, err)
+	assert.False(t, success)
 
 	_, err = s.Write(ctx, WriteRequest{
 		Add: []Tuple{MustNewTuple("team:admins#member@user:dom")},
 	})
 	require.NoError(t, err)
 
-	assert.Nil(t, s.Check(ctx, MustNewTuple("team:admins#member@user:dom")))
+	success, err = s.Check(ctx, MustNewTuple("team:admins#member@user:dom"))
+	require.NoError(t, err)
+	assert.True(t, success)
 }
 
 func TestComputed(t *testing.T) {
@@ -73,14 +77,18 @@ func TestComputed(t *testing.T) {
 
 	s := NewServer(schema, NewTupleStore(conn))
 
-	assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
+	success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+	require.NoError(t, err)
+	assert.False(t, success)
 
 	_, err = s.Write(ctx, WriteRequest{
 		Add: []Tuple{MustNewTuple("item:banana#owner@user:dom")},
 	})
 	require.NoError(t, err)
 
-	assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
+	success, err = s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+	require.NoError(t, err)
+	assert.True(t, success)
 }
 
 func TestUnion(t *testing.T) {
@@ -99,7 +107,8 @@ func TestUnion(t *testing.T) {
 				Relations: []SchemaRelationDef{
 					{Name: "owner"},
 					{Name: "reader"},
-					{Name: "can_retrieve", Value: NewUnion(NewComputed("reader"), NewComputed("owner"))},
+					{Name: "can_write", Value: NewComputed("reader")},
+					{Name: "can_retrieve", Value: NewUnion(NewComputed("owner"), NewComputed("can_write"))},
 				},
 			},
 		},
@@ -108,7 +117,9 @@ func TestUnion(t *testing.T) {
 	s := NewServer(schema, NewTupleStore(conn))
 
 	t.Run("FailsAtStart", func(t *testing.T) {
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
 	})
 
 	t.Run("SuccessWhenOwner", func(t *testing.T) {
@@ -117,7 +128,9 @@ func TestUnion(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
 	})
 
 	t.Run("SuccessWhenOwnerAndReader", func(t *testing.T) {
@@ -126,7 +139,9 @@ func TestUnion(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
 	})
 
 	t.Run("SuccessWhenReader", func(t *testing.T) {
@@ -135,7 +150,9 @@ func TestUnion(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")))
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
 	})
 
 	t.Run("FailureWhenNeither", func(t *testing.T) {
@@ -144,7 +161,9 @@ func TestUnion(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom")), ErrNoConnection)
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_retrieve@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
 	})
 }
 
@@ -178,7 +197,9 @@ func TestComputedViaTupleset(t *testing.T) {
 	s := NewServer(schema, NewTupleStore(conn))
 
 	t.Run("FailsAtStart", func(t *testing.T) {
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
 	})
 
 	t.Run("FailsOnUnrelated", func(t *testing.T) {
@@ -190,7 +211,9 @@ func TestComputedViaTupleset(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -201,7 +224,10 @@ func TestComputedViaTupleset(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")))
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
+
 	})
 }
 
@@ -234,7 +260,9 @@ func TestStatic(t *testing.T) {
 	s := NewServer(schema, NewTupleStore(conn))
 
 	t.Run("FailsAtStart", func(t *testing.T) {
-		assert.ErrorIs(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")), ErrNoConnection)
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom"))
+		require.NoError(t, err)
+		assert.False(t, success)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -244,6 +272,8 @@ func TestStatic(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.Nil(t, s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom")))
+		success, err := s.Check(ctx, MustNewTuple("item:banana#can_change_price@user:dom"))
+		require.NoError(t, err)
+		assert.True(t, success)
 	})
 }
