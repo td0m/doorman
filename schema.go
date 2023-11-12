@@ -15,7 +15,7 @@ func (schema SchemaDef) Resolve(ctx context.Context, tuple Tuple) (LazyUserset, 
 		if typ.Name == otype {
 			for _, rel := range typ.Relations {
 				if rel.Name == tuple.Relation {
-					direct := LazyDirect{Tupleset: Tupleset{Object: tuple.Object, Relation: tuple.Relation}}
+					direct := DirectUserset{Tupleset: Tupleset{Object: tuple.Object, Relation: tuple.Relation}}
 					if rel.Value == nil {
 						return direct, nil
 					}
@@ -23,7 +23,7 @@ func (schema SchemaDef) Resolve(ctx context.Context, tuple Tuple) (LazyUserset, 
 					if err != nil {
 						return nil, err
 					}
-					union := LazyUnionUserset{Args: []LazyUserset{direct, val}}
+					union := UsersetUnion{Args: []LazyUserset{direct, val}}
 					return union, nil
 				}
 			}
@@ -61,7 +61,7 @@ func (d UnionDef) ToSet(ctx context.Context, atObject string) (LazyUserset, erro
 		usersets[i] = userset
 	}
 
-	return LazyUnionUserset{Args: usersets}, nil
+	return UsersetUnion{Args: usersets}, nil
 }
 
 type ComputedUsersetDef struct {
@@ -96,7 +96,7 @@ type StaticComputedUsersetDef struct {
 }
 
 func (d StaticComputedUsersetDef) ToSet(ctx context.Context, atObject string) (LazyUserset, error) {
-	return LazyDirect{Tupleset: d.Userset}, nil
+	return DirectUserset{Tupleset: d.Userset}, nil
 }
 
 func NewStatic(tupleset Tupleset) StaticComputedUsersetDef {
