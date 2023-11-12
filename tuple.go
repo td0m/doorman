@@ -8,11 +8,11 @@ import (
 type Tuple struct {
 	Object   string
 	Relation string
-	UserID   string
+	Subject   string
 }
 
 func (t Tuple) String() string {
-	return t.Object + "#" + t.Relation + "@" + t.UserID
+	return t.Object + "#" + t.Relation + "@" + t.Subject
 }
 
 func NewTuple(s string) (Tuple, error) {
@@ -21,12 +21,12 @@ func NewTuple(s string) (Tuple, error) {
 		return Tuple{}, errors.New("expected to contain exactly one '@'")
 	}
 
-	setStr, userID := parts[0], parts[1]
+	setStr, sub := parts[0], parts[1]
 	userset, err := NewUserset(setStr)
 	if err != nil {
 		return Tuple{}, err
 	}
-	return Tuple{UserID: userID, Object: userset.Object, Relation: userset.Relation}, nil
+	return Tuple{Subject: sub, Object: userset.Object, Relation: userset.Relation}, nil
 }
 
 func MustNewTuple(s string) Tuple {

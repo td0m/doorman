@@ -44,7 +44,7 @@ type SchemaTypeDef struct {
 }
 
 type Resolver interface {
-	ListUsers(ctx context.Context, userset Userset) ([]string, error)
+	ListSubjects(ctx context.Context, userset Userset) ([]string, error)
 }
 
 type SetDef interface {

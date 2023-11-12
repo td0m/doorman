@@ -44,16 +44,16 @@ type LazyResolver interface {
 }
 
 type LazyUserset interface {
-	Has(ctx context.Context, resolver LazyResolver, userID string) (bool, error)
+	Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error)
 }
 
 type LazyUnionUserset struct {
 	Args []LazyUserset
 }
 
-func (s LazyUnionUserset) Has(ctx context.Context, resolver LazyResolver, userID string) (bool, error) {
+func (s LazyUnionUserset) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
 	for _, arg := range s.Args {
-		has, err := arg.Has(ctx, resolver, userID)
+		has, err := arg.Has(ctx, resolver, sub)
 		if err != nil {
 			return false, fmt.Errorf("has failed: %w", err)
 		}
@@ -69,8 +69,8 @@ type ComputedUserset struct {
 	Userset Userset
 }
 
-func (c ComputedUserset) Has(ctx context.Context, resolver LazyResolver, userID string) (bool, error) {
-	err := resolver.Check(ctx, Tuple{Object: c.Userset.Object, Relation: c.Userset.Relation, UserID: userID})
+func (c ComputedUserset) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
+	err := resolver.Check(ctx, Tuple{Object: c.Userset.Object, Relation: c.Userset.Relation, Subject: sub})
 	if err != nil && err != ErrNoConnection {
 		return false, err
 	}
@@ -90,8 +90,8 @@ type LazyDirect struct {
 	Userset Userset
 }
 
-func (u LazyDirect) Has(ctx context.Context, resolver LazyResolver, userID string) (bool, error) {
-	err := resolver.CheckDirect(ctx, Tuple{Object: u.Userset.Object, Relation: u.Userset.Relation, UserID: userID})
+func (u LazyDirect) Has(ctx context.Context, resolver LazyResolver, sub string) (bool, error) {
+	err := resolver.CheckDirect(ctx, Tuple{Object: u.Userset.Object, Relation: u.Userset.Relation, Subject: sub})
 	if err != nil && err != ErrNoConnection {
 		return false, fmt.Errorf("failed direct check: %w", err)
 	}

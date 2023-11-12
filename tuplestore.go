@@ -11,9 +11,9 @@ type TupleStore struct {
 	conn *pgxpool.Pool
 }
 
-func (t *TupleStore) ListUsers(ctx context.Context, userset Userset) ([]string, error) {
+func (t *TupleStore) ListSubjects(ctx context.Context, userset Userset) ([]string, error) {
 	query := `
-		select user_id
+		select subject
 		from tuples
 		where
 			object = $1 and
@@ -39,12 +39,12 @@ func (t *TupleStore) ListUsers(ctx context.Context, userset Userset) ([]string, 
 
 func (t *TupleStore) Add(ctx context.Context, tuple Tuple) error {
 	query := `
-		insert into tuples(object, relation, user_id)
+		insert into tuples(object, relation, subject)
 		values($1, $2, $3)
 		on conflict do nothing
 	`
 
-	if _, err := t.conn.Exec(ctx, query, tuple.Object, tuple.Relation, tuple.UserID); err != nil {
+	if _, err := t.conn.Exec(ctx, query, tuple.Object, tuple.Relation, tuple.Subject); err != nil {
 		return fmt.Errorf("exec failed: %w", err)
 	}
 
@@ -59,12 +59,12 @@ func (t *TupleStore) Exists(ctx context.Context, tuple Tuple) error {
 			where
 				object = $1 and
 				relation = $2 and
-				user_id = $3
+				subject = $3
 		)
 	`
 
 	var exists bool
-	if err := t.conn.QueryRow(ctx, query, tuple.Object, tuple.Relation, tuple.UserID).Scan(&exists); err != nil {
+	if err := t.conn.QueryRow(ctx, query, tuple.Object, tuple.Relation, tuple.Subject).Scan(&exists); err != nil {
 		return fmt.Errorf("query failed: %w", err)
 	}
 
@@ -80,10 +80,10 @@ func (t *TupleStore) Remove(ctx context.Context, tuple Tuple) error {
 		where
 			object = $1 and
 			relation = $2 and
-			user_id = $3
+			subject = $3
 	`
 
-	if _, err := t.conn.Exec(ctx, query, tuple.Object, tuple.Relation, tuple.UserID); err != nil {
+	if _, err := t.conn.Exec(ctx, query, tuple.Object, tuple.Relation, tuple.Subject); err != nil {
 		return fmt.Errorf("exec failed: %w", err)
 	}
 
