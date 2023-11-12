@@ -28,7 +28,7 @@ func (t *TupleStore) ListSubjects(ctx context.Context, tupleset Tupleset) ([]str
 
 	for rows.Next() {
 		user := ""
-		if err := rows.Scan(ctx, &user); err != nil {
+		if err := rows.Scan(&user); err != nil {
 			return nil, fmt.Errorf("failed to scan: %w", err)
 		}
 		users = append(users, user)
