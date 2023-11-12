@@ -39,7 +39,11 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) error {
 
 	fmt.Println(tuple, lazyUserset)
 
-	ok, err := lazyUserset.Has(ctx, s, tuple.Subject)
+	resolver := DirectResolver{
+		server: s,
+	}
+
+	ok, err := resolver.Check(ctx, lazyUserset, tuple.Subject)
 	if err != nil {
 		return fmt.Errorf("failed computing lazy userset: %w", err)
 	}
