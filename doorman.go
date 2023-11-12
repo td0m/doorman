@@ -37,6 +37,8 @@ func (s *Server) Check(ctx context.Context, tuple Tuple) error {
 		return fmt.Errorf("failed resolving schema: %w", err)
 	}
 
+	fmt.Println(tuple, lazyUserset)
+
 	ok, err := lazyUserset.Has(ctx, s, tuple.Subject)
 	if err != nil {
 		return fmt.Errorf("failed computing lazy userset: %w", err)
